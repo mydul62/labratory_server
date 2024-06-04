@@ -34,14 +34,41 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
+    const database = client.db("diagnosticManagement");
+    const districtCollection = database.collection("districts");
+    const upazillasCollection = database.collection("Upazillas");
+    const AllTestCollection = database.collection("AllTest");
+    const AlluserCollection = database.collection("Allusers");
+
     // Send a ping to confirm a successful connection
+    app.get('/district',async(req, res) =>{
+     const result = await districtCollection.find().toArray();
+     res.send(result);
+    })
+    app.get('/upazillas',async(req, res) =>{
+     const result = await upazillasCollection.find().toArray();
+     res.send(result);
+    })
+    app.get('/alltests',async(req, res) =>{
+     const result = await AllTestCollection.find().toArray();
+     res.send(result);
+    })
+    app.get('/allusers',async(req, res) =>{
+        const result = await AlluserCollection.find().toArray();
+        res.send(result);
+    });
     
+    
+    app.post('/allusers',async(req, res) =>{
+        const result = await AlluserCollection.insertOne(req.body);
+        res.send(result);
+    });
     
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
-    await client.close();
+    // await client.close();
   }
 }
 run().catch(console.dir);
