@@ -94,10 +94,24 @@ async function run() {
         res.send(result);
     });
     
+    app.get('/Alltests/tests/test/:id',async(req, res) =>{
+     const id = req.params.id;
+      const query = {_id: new ObjectId(id)}   
+      const result = await AllTestCollection.findOne(query);
+        res.send(result);
+    });
+    
     
     app.post('/alltest',async(req, res) =>{
         const result = await AllTestCollection.insertOne(req.body);
         res.send(result);
+    });
+    app.delete('/alltest/delete/:id',async(req, res) =>{
+     const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await AllTestCollection.deleteOne(query);
+      res.send(result);
+      console.log(id);
     });
     app.post("/alltest/Booking",async(req, res) =>{
         const result = await AllBookedCollection.insertOne(req.body);
