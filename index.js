@@ -171,6 +171,19 @@ async function run() {
       const result = await AlluserCollection.insertOne(req.body);
       res.send(result);
     });
+    app.patch("/allusers/status/:email", async (req, res) => {
+      const email = req.params.email;
+      const quary = {emailAdress:email}
+      const updateStatus= req.body.status;
+      const updatedDoc = {
+        $set: {
+          status: updateStatus,
+        },
+      }; 
+      const result = await AlluserCollection.updateOne(quary, updatedDoc);
+      res.send(result);
+      console.log(updateStatus);
+      });
     
     
     // ---------------------------------------------------
