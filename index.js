@@ -40,6 +40,7 @@ async function run() {
     const AllTestCollection = database.collection("AllTest");
     const AlluserCollection = database.collection("Allusers");
     const AllBookedCollection = database.collection("allBooked");
+    const AllBannerCollection = database.collection("banner");
 
     // Send a ping to confirm a successful connection
     app.get("/district", async (req, res) => {
@@ -69,21 +70,12 @@ async function run() {
           .send("An error occurred while processing your request.");
       }
     });
-
-    app.get("/alltests/date/:date", async (req, res) => {
-      try {
-        const { date } = req.params;
-        console.log(`Searching for records with date: ${date}`);
-
-        const result = await AllTestCollection.find({ date }).toArray();
+    app.get("/alltests/adminAlltests", async (req, res) => {
+        const result = await AllTestCollection.find() .toArray();
         res.send(result);
-      } catch (error) {
-        console.error(error);
-        res
-          .status(500)
-          .send("An error occurred while processing your request.");
-      }
     });
+
+   
 
     app.get("/allusers", async (req, res) => {
       const result = await AlluserCollection.find().toArray();
@@ -184,6 +176,20 @@ async function run() {
       res.send(result);
       console.log(updateStatus);
       });
+    app.patch("/allusers/user_role/role/:email", async (req, res) => {
+      const email = req.params.email;
+      const quary = {emailAdress:email}
+      const updateStatus= req.body.role;
+      const updatedDoc = {
+        $set: {
+          role: updateStatus,
+        },
+      }; 
+      const result = await AlluserCollection.updateOne(quary, updatedDoc);
+      res.send(result);
+      console.log(updateStatus,email);
+      console.log(result);
+      });
     
     
     // ---------------------------------------------------
@@ -210,8 +216,8 @@ async function run() {
         updateInformations
       );
       console.log("Update result:", result);
-      console.log(updateInformations);
-    });
+      res.send(result);
+      });
 
     app.patch("/alltest/slot/:id", async (req, res) => {
       const id = req.params.id;
@@ -226,6 +232,48 @@ async function run() {
       const result = await AllTestCollection.updateOne(query, updatedDoc);
       res.send(result);
     });
+    
+    
+    // ----------------------------------------------------------------all banners\
+
+
+   app.get("/all_banners",async(req, res) => {
+    const result = await AllBannerCollection.find().toArray();
+   res.send(result);
+   
+   })
+   app.post("/all_banners",async(req, res) => {
+   const bannerData = req.body;
+   const result = await AllBannerCollection.insertOne(bannerData);
+      res.send(result);
+   
+   })
+   app.get('/all_banners/banners/:isActive', async (req, res) => {
+    const isActive = req.params.isActive === 'true'; 
+    try {
+      const query = { isActive };
+      const result = await AllBannerCollection.findOne(query);
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching banner:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+  
+  app.put("/all_banners/:id",async(req, res) => {
+     const id = req.params.id;
+     await AllBannerCollection.updateMany({}, { $set: { isActive: false } });
+     const result = await AllBannerCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { isActive: true } }
+    );
+    res.send(result);
+     console.log(id);
+    })
+    
+    
+    
+    
 
     await client.db("admin").command({ ping: 1 });
     console.log(
