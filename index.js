@@ -5,6 +5,7 @@ const app = express();
 // app.use(cookieParser());
 const cors = require("cors");
 require("dotenv").config();
+const stripe = require("stripe")(process.env.DB_STRIPR_SECRET_KEY);
 app.use(
   cors({
     origin: ["http://localhost:5173"],
@@ -41,6 +42,7 @@ async function run() {
     const AlluserCollection = database.collection("Allusers");
     const AllBookedCollection = database.collection("allBooked");
     const AllBannerCollection = database.collection("banner");
+    const AllappointmentResult = database.collection("appointmentResult");
 
     // Send a ping to confirm a successful connection
     app.get("/district", async (req, res) => {
@@ -137,13 +139,55 @@ async function run() {
       const result = await AllBookedCollection.find(query).toArray();
       res.send(result);
     });
+    app.get("/alltest/Booking/reservations/search", async (req, res) => {
+      const id = req.query.id;
+      const email = req.query.email;
+      
+      console.log(`Received search request with id: ${id} and email: ${email}`);
+      
+      if (!id || !email) {
+        res.status(400).send("ID and email are required");
+        return;
+      }
+      
+      try {
+        const query = { userEmail: email };
+        console.log(`Querying database with: ${JSON.stringify(query)}`);
+        
+        const result = await AllBookedCollection.find(query).toArray();
+        console.log(`Query result: ${JSON.stringify(result)}`);
+        
+        if (result.length === 0) {
+          res.status(404).send("No reservations found");
+        } else {
+          res.send(result);
+        }
+      } catch (error) {
+        console.error("Database query failed", error);
+        res.status(500).send("Internal Server Error");
+      }
+    });
+    
     app.delete("/alltest/Booking/Delete/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await AllBookedCollection.deleteOne(query);
       res.send(result);
     });
-    
+    app.post("/allTests/booking/booking-result/submit-result", async (req, res) => {
+      try {
+        const reservation = req.body;
+        if (!reservation) {
+          return res.status(400).send({ error: "Invalid reservation data" });
+        }
+        const result = await AllappointmentResult.insertOne(reservation);
+        res.status(201).send(result);
+        console.log(reservation);
+      } catch (error) {
+        console.error('Error inserting reservation:', error);
+        res.status(500).send({ error: "Internal server error" });
+      }
+    });
     
     app.patch("/allTests/booking/statusUpdate/status/:id", async (req, res) => {
       const id = req.params.id;
@@ -271,7 +315,42 @@ async function run() {
      console.log(id);
     })
     
-    
+   
+app.get("/all_banners/getpromo", async (req, res) => { 
+  const couponCode = req.query.couponCode;
+  const quary = {couponCode}
+  if (couponCode) { 
+  console.log(couponCode);
+       const result = await AllBannerCollection.findOne(quary);
+       res.send(result);
+  } else {
+      res.status(400).send({ success: false, message: "No promo code provided" });
+  }
+});
+
+
+
+// -------------------paymet ------------------
+
+app.post("/create-payment-intent", async (req, res) => {
+const price = req.body.price;
+const amaount = parseFloat(price) * 100;
+if(!price || amaount<1) {
+return;
+}
+const {client_secret} = await stripe.paymentIntents.create({
+  amount: amaount,
+  currency: "usd",
+  // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+  automatic_payment_methods: {
+    enabled: true,
+  },
+
+}) 
+res.send({clientSecret:client_secret})
+
+})
+
     
     
 
