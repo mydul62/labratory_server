@@ -53,12 +53,21 @@ async function run() {
       const result = await upazillasCollection.find().toArray();
       res.send(result);
     });
+    
+    
+    
     app.get("/alltests", async (req, res) => {
+    const searchDate = req.query.search
+    console.log(searchDate);
+     if(searchDate){
+       const quary = {date: searchDate}
+       result = await AllTestCollection.find(quary).toArray();
+       res.send(result);
+     }else{
       try {
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const formattedToday = today.toISOString().split("T")[0];
-
+        today.setUTCHours(0, 0, 0, 0); 
+        const formattedToday =  today.toISOString().split('T')[0];
         const result = await AllTestCollection.find({
           date: { $gte: formattedToday },
         })
@@ -71,7 +80,11 @@ async function run() {
           .status(500)
           .send("An error occurred while processing your request.");
       }
+     }
     });
+    
+    
+    
     app.get("/alltests/adminAlltests", async (req, res) => {
         const result = await AllTestCollection.find() .toArray();
         res.send(result);
@@ -127,6 +140,48 @@ async function run() {
       const result = await AllBookedCollection.find().toArray();
       res.send(result);
     });
+    
+    
+    
+    app.get("/alltest/Booking/features", async (req, res) => {
+      try {
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0); // Set UTC hours to start of the day
+    
+        const todayDateString = today.toISOString().split('T')[0];
+    
+        const result = await AllBookedCollection.aggregate([
+          {
+            $match: {
+              appontmentData: { $gte: todayDateString } // Filter for dates from today onwards
+            }
+          },
+          {
+            $sort: { BookedDate: 1 } // Sort by BookedDate in ascending order
+          },
+          {
+            $group: {
+              _id: "$bookingId", // Group by bookingId to remove duplicates
+              latestBooking: { $first: "$$ROOT" } // Get the first document in each group
+            }
+          },
+          {
+            $replaceRoot: { newRoot: "$latestBooking" } // Replace the root with the latestBooking document
+          }
+        ]).toArray();
+    
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        res.status(500).send("Error fetching data");
+      }
+    });
+    
+    
+    
+    
+    
+    
     app.get("/alltest/Booking/reservations/:id", async (req, res) => {
     const id = req.params.id;
     const query = { bookingId:id};
@@ -139,34 +194,30 @@ async function run() {
       const result = await AllBookedCollection.find(query).toArray();
       res.send(result);
     });
-    app.get("/alltest/Booking/reservations/search", async (req, res) => {
-      const id = req.query.id;
-      const email = req.query.email;
-      
-      console.log(`Received search request with id: ${id} and email: ${email}`);
-      
+    
+    app.get("/alltest/Booking/reservations/search/search-item", async (req, res) => {
+      const { id, email } = req.query;    
       if (!id || !email) {
-        res.status(400).send("ID and email are required");
-        return;
+        return res.status(400).send('Both id and email are required');
       }
-      
+    
       try {
-        const query = { userEmail: email };
-        console.log(`Querying database with: ${JSON.stringify(query)}`);
-        
+        const query = { userEmail: email, bookingId: id };
         const result = await AllBookedCollection.find(query).toArray();
-        console.log(`Query result: ${JSON.stringify(result)}`);
-        
+    
         if (result.length === 0) {
-          res.status(404).send("No reservations found");
-        } else {
-          res.send(result);
+          console.log('No data found for query:', query);
+          return res.status(404).send('No data found');
         }
+    
+        console.log('Query successful, data found:', result);
+        res.send(result);
       } catch (error) {
-        console.error("Database query failed", error);
-        res.status(500).send("Internal Server Error");
+        console.error('Error fetching data from MongoDB', error);
+        res.status(500).send('Internal Server Error');
       }
     });
+    
     
     app.delete("/alltest/Booking/Delete/:id", async (req, res) => {
       const id = req.params.id;
@@ -188,6 +239,15 @@ async function run() {
         res.status(500).send({ error: "Internal server error" });
       }
     });
+    
+    app.get("/testResults/:email",async (req, res) => {
+    const email = req.params.email;
+    console.log(email);
+    const quary = {userEmail:email}
+     const result = await AllappointmentResult.find(quary).toArray();
+    res.send(result);
+    
+    })
     
     app.patch("/allTests/booking/statusUpdate/status/:id", async (req, res) => {
       const id = req.params.id;
@@ -313,6 +373,12 @@ async function run() {
     );
     res.send(result);
      console.log(id);
+    })
+  app.delete("/all_banners/delete/:id",async(req, res) => {
+     const id = req.params.id;
+     const quary = {_id: new ObjectId(id) }
+     const result = await AllBannerCollection.deleteOne(quary);
+     res.send(result);
     })
     
    
