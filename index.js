@@ -43,6 +43,7 @@ async function run() {
     const AllBookedCollection = database.collection("allBooked");
     const AllBannerCollection = database.collection("banner");
     const AllappointmentResult = database.collection("appointmentResult");
+    const blogCollections = database.collection("blog");
 
     // Send a ping to confirm a successful connection
     app.get("/district", async (req, res) => {
@@ -51,6 +52,12 @@ async function run() {
     });
     app.get("/upazillas", async (req, res) => {
       const result = await upazillasCollection.find().toArray();
+      res.send(result);
+    });
+    
+    
+    app.get("/blogs", async (req, res) => {
+      const result = await blogCollections.find().toArray();
       res.send(result);
     });
     
@@ -416,6 +423,84 @@ const {client_secret} = await stripe.paymentIntents.create({
 res.send({clientSecret:client_secret})
 
 })
+
+// ---------------------------------------------------------------------------------------- chats data 
+
+async function getAggregatedData(req, res) {
+  try {
+    // Aggregation pipeline
+    const pipeline = [
+      // {
+      //     $match: {
+      //         userEmail: "mydulcse62.niter@gmail.com" // replace with the actual email to filter by
+      //     }
+      // },
+      {
+        $addFields: {
+            convertedBookingId: { $toObjectId: "$bookingId" }
+        }
+    },
+    {
+        $lookup: {
+            from: "AllTest",
+            localField: "convertedBookingId",
+            foreignField: "_id",
+            as: "testDetails"
+        }
+    },
+      {
+          $unwind: "$testDetails"
+      },
+      {
+          $group: {
+              _id: "$bookingId",
+              totalBooking: { $sum: 1 },
+              title: { $first: "$testDetails.title" }
+          }
+      },
+      {
+          $project: {
+              _id: 1,
+              title: 1,
+              totalBooking: 1
+          }
+      }
+  ];
+  
+
+    // Run the aggregation
+    const results = await AllBookedCollection.aggregate(pipeline).toArray();
+    console.log(results);
+    res.json(results);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal Server Error");
+  } finally {
+    // Close the MongoDB connection (if necessary)
+  }
+}
+
+// Define a route to get the aggregated data
+app.get('/aggregated-data', getAggregatedData);
+
+
+
+
+
+
+
+
+
+
+
+
+// ---------------------------------------------------------------------------------------- chats data 
+
+
+
+
+
+
 
     
     
