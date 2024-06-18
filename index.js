@@ -1,8 +1,6 @@
 const express = require("express");
-// const jwt = require('jsonwebtoken')
-// const cookieParser = require('cookie-parser')
+const jwt = require('jsonwebtoken')
 const app = express();
-// app.use(cookieParser());
 const cors = require("cors");
 require("dotenv").config();
 const stripe = require("stripe")(process.env.DB_STRIPR_SECRET_KEY);
@@ -44,6 +42,56 @@ async function run() {
     const AllBannerCollection = database.collection("banner");
     const AllappointmentResult = database.collection("appointmentResult");
     const blogCollections = database.collection("blog");
+
+
+
+
+// -------------------------------------------jwt--------------------------------
+
+// middlewires 
+const verifyToken =(req,res,next) => {
+ console.log("inside verify token",req.headers.authorization);
+ if(!req.headers.authorization){
+ return res.status(401).send({message:'unauthorized access'})
+ }
+ const token = req.headers.authorization.split(" ")[1];
+   jwt.verify(token,process.env.DB_ACCESS_TOKEN_SECRET_KEY,(error,decoded)=>{
+     if(error){
+       return res.status(401).send({message:'unauthorized access'})
+     }
+     req.decoded = decoded;
+       next()
+   })
+}
+
+
+const verifyAdmin = async(req,res,next)=> {
+
+  const email = req.decoded.email;
+  const query = {emailAdress:email}
+  const user = await AlluserCollection.findOne(query);
+  const isAdmin = user.role === "admin";
+  console.log(query,user);
+  if(!isAdmin){
+    return res.status(403).send({message:'forbiddem access'})
+  
+  }
+  next();
+  
+   }
+
+
+app.post('/jwt',async(req,res)=>{
+  const user = req.body;
+   const token =jwt.sign(user,process.env.DB_ACCESS_TOKEN_SECRET_KEY,{expiresIn:'24h'});
+   res.send({token})
+})
+
+
+
+
+
+
 
     // Send a ping to confirm a successful connection
     app.get("/district", async (req, res) => {
@@ -92,23 +140,39 @@ async function run() {
     
     
     
-    app.get("/alltests/adminAlltests", async (req, res) => {
-        const result = await AllTestCollection.find() .toArray();
+    app.get("/alltests/adminAlltests",async (req, res) => {
+        const result = await AllTestCollection.find().toArray();
         res.send(result);
     });
 
    
 
-    app.get("/allusers", async (req, res) => {
+    app.get("/allusers",verifyToken,verifyAdmin, async (req, res) => {
       const result = await AlluserCollection.find().toArray();
       res.send(result);
     });
-    app.get("/allusers/email/:email", async (req, res) => {
+    app.get("/allusers/email/:email",async (req, res) => {
       const email = req.params.email;
       const query = { emailAdress: email };
       const result = await AlluserCollection.findOne(query);
       res.send(result);
     });
+    app.get("/allusers/email/isadmin/:email",verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if(email !== req.decoded.email){
+        return res.status(403).send({message:'forbiddem access'})
+      }
+      const query = { emailAdress: email };
+      const user = await AlluserCollection.findOne(query);
+       let admin = false;
+       if(user){
+       admin = user.role === "admin";
+       }
+       res.send({admin})
+       
+    });
+    
+    
     app.get("/Alltests/tests/test/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -116,7 +180,7 @@ async function run() {
       res.send(result);
     });
 
-    app.put("/Alltests/tests/test/update/:id", async (req, res) => {
+    app.put("/Alltests/tests/test/update/:id",verifyToken,verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const { title, description, price, image, date, slot, category } =
@@ -128,11 +192,11 @@ async function run() {
      res.send(result);
     });
 
-    app.post("/alltest", async (req, res) => {
+    app.post("/alltest",verifyToken,verifyAdmin,async (req, res) => {
       const result = await AllTestCollection.insertOne(req.body);
       res.send(result);
     });
-    app.delete("/alltest/delete/:id", async (req, res) => {
+    app.delete("/alltest/delete/:id",verifyToken,verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await AllTestCollection.deleteOne(query);
@@ -189,7 +253,7 @@ async function run() {
     
     
     
-    app.get("/alltest/Booking/reservations/:id", async (req, res) => {
+    app.get("/alltest/Booking/reservations/:id",verifyToken,verifyAdmin, async (req, res) => {
     const id = req.params.id;
     const query = { bookingId:id};
       const result = await AllBookedCollection.find(query).toArray();
@@ -202,7 +266,7 @@ async function run() {
       res.send(result);
     });
     
-    app.get("/alltest/Booking/reservations/search/search-item", async (req, res) => {
+    app.get("/alltest/Booking/reservations/search/search-item",verifyToken,verifyAdmin, async (req, res) => {
       const { id, email } = req.query;    
       if (!id || !email) {
         return res.status(400).send('Both id and email are required');
@@ -232,7 +296,7 @@ async function run() {
       const result = await AllBookedCollection.deleteOne(query);
       res.send(result);
     });
-    app.post("/allTests/booking/booking-result/submit-result", async (req, res) => {
+    app.post("/allTests/booking/booking-result/submit-result",verifyToken,verifyAdmin, async (req, res) => {
       try {
         const reservation = req.body;
         if (!reservation) {
@@ -256,7 +320,7 @@ async function run() {
     
     })
     
-    app.patch("/allTests/booking/statusUpdate/status/:id", async (req, res) => {
+    app.patch("/allTests/booking/statusUpdate/status/:id",verifyToken,verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const updateStatus= req.body.status;
@@ -274,7 +338,7 @@ async function run() {
       const result = await AlluserCollection.insertOne(req.body);
       res.send(result);
     });
-    app.patch("/allusers/status/:email", async (req, res) => {
+    app.patch("/allusers/status/:email",verifyToken,verifyAdmin, async (req, res) => {
       const email = req.params.email;
       const quary = {emailAdress:email}
       const updateStatus= req.body.status;
@@ -287,7 +351,7 @@ async function run() {
       res.send(result);
       console.log(updateStatus);
       });
-    app.patch("/allusers/user_role/role/:email", async (req, res) => {
+    app.patch("/allusers/user_role/role/:email",verifyToken,verifyAdmin, async (req, res) => {
       const email = req.params.email;
       const quary = {emailAdress:email}
       const updateStatus= req.body.role;
@@ -304,7 +368,7 @@ async function run() {
     
     
     // ---------------------------------------------------
-    app.patch("/allusers/Updates/update/:email", async (req, res) => {
+    app.patch("/allusers/Updates/update/:email",verifyToken,async (req, res) => {
       const email = req.params.email;
       const query = { emailAdress: email };
 
@@ -348,12 +412,12 @@ async function run() {
     // ----------------------------------------------------------------all banners\
 
 
-   app.get("/all_banners",async(req, res) => {
+   app.get("/all_banners",verifyToken,verifyAdmin,async(req, res) => {
     const result = await AllBannerCollection.find().toArray();
    res.send(result);
    
    })
-   app.post("/all_banners",async(req, res) => {
+   app.post("/all_banners",verifyToken,verifyAdmin,async(req, res) => {
    const bannerData = req.body;
    const result = await AllBannerCollection.insertOne(bannerData);
       res.send(result);
@@ -371,7 +435,7 @@ async function run() {
     }
   });
   
-  app.put("/all_banners/:id",async(req, res) => {
+  app.put("/all_banners/:id",verifyToken,verifyAdmin,async(req, res) => {
      const id = req.params.id;
      await AllBannerCollection.updateMany({}, { $set: { isActive: false } });
      const result = await AllBannerCollection.updateOne(
@@ -381,7 +445,7 @@ async function run() {
     res.send(result);
      console.log(id);
     })
-  app.delete("/all_banners/delete/:id",async(req, res) => {
+  app.delete("/all_banners/delete/:id",verifyToken,verifyAdmin,async(req, res) => {
      const id = req.params.id;
      const quary = {_id: new ObjectId(id) }
      const result = await AllBannerCollection.deleteOne(quary);
@@ -470,7 +534,6 @@ async function getAggregatedData(req, res) {
 
     // Run the aggregation
     const results = await AllBookedCollection.aggregate(pipeline).toArray();
-    console.log(results);
     res.json(results);
   } catch (err) {
     console.error(err);
