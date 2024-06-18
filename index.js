@@ -42,6 +42,7 @@ async function run() {
     const AllBannerCollection = database.collection("banner");
     const AllappointmentResult = database.collection("appointmentResult");
     const blogCollections = database.collection("blog");
+    const allRecomendations = database.collection("recomendation");
 
 
 
@@ -547,19 +548,12 @@ async function getAggregatedData(req, res) {
 app.get('/aggregated-data', getAggregatedData);
 
 
-
-
-
-
-
-
-
-
-
-
 // ---------------------------------------------------------------------------------------- chats data 
 
-
+app.get('/recomendations/recomendation',async(req, res)=>{
+  const result = await allRecomendations.find().toArray();
+  res.send(result);
+})
 
 
 
